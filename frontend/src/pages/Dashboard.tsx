@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { getDashboardData } from "../services/dashboard.service";
 import { DashboardStats } from "../types";
 import { Loader } from "../components/ui/Loader";
-
 import {
   CheckCircle2,
   Clock,
@@ -10,79 +9,32 @@ import {
   ListTodo,
   ArrowRight,
 } from "lucide-react";
-
 import { StatusBadge } from "../components/ui/StatusBadge";
 import { PriorityBadge } from "../components/ui/PriorityBadge";
-
 import { Link } from "react-router-dom";
 import { motion } from "motion/react";
 
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
-
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-  let isMounted = true;
-
-  async function fetchStats() {
-    try {
-      // LOAD CACHED DATA FIRST
-      const cached =
-        sessionStorage.getItem(
-          "dashboardStats",
-        );
-
-      if (cached && isMounted) {
-        setStats(
-          JSON.parse(cached),
-        );
-
-        setIsLoading(false);
-      }
-
-      // FETCH LATEST DATA
-      const data =
-        await getDashboardData();
-
-      if (isMounted) {
+    async function fetchStats() {
+      try {
+        const data = await getDashboardData();
         setStats(data);
-
-        // CACHE DATA
-        sessionStorage.setItem(
-          "dashboardStats",
-          JSON.stringify(data),
-        );
-      }
-    } catch (error) {
-      console.error(
-        "Failed to fetch dashboard stats",
-        error,
-      );
-    } finally {
-      if (isMounted) {
+      } catch (error) {
+        console.error("Failed to fetch dashboard stats", error);
+      } finally {
         setIsLoading(false);
       }
     }
-  }
 
-  fetchStats();
+    fetchStats();
+  }, []);
 
-  return () => {
-    isMounted = false;
-  };
-}, []);
-
-  if (isLoading && !stats) {
-    return <Loader />;
-  }
-
+  if (isLoading) return <Loader />;
   if (!stats) return null;
-
-  const completionRate =
-    stats.totalTasks > 0
-      ? Math.round((stats.completedTasks / stats.totalTasks) * 100)
-      : 0;
 
   const cards = [
     {
@@ -92,7 +44,6 @@ export default function Dashboard() {
       color: "text-slate-600",
       bg: "bg-slate-100",
     },
-
     {
       label: "Completed",
       value: stats.completedTasks,
@@ -100,15 +51,13 @@ export default function Dashboard() {
       color: "text-emerald-600",
       bg: "bg-emerald-100",
     },
-
     {
-      label: "Pending",
+      label: "In Progress",
       value: stats.pendingTasks,
       icon: Clock,
       color: "text-indigo-600",
       bg: "bg-indigo-100",
     },
-
     {
       label: "Overdue",
       value: stats.overdueTasks,
@@ -120,42 +69,45 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+          Dashboard
+        </h1>
+
+        <p className="mt-2 text-sm text-slate-500">
+          Monitor tasks, progress, and recent activity.
+        </p>
+      </div>
+
       {/* Stats */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map((card, i) => (
           <motion.div
             key={card.label}
-            initial={{
-              opacity: 0,
-              y: 20,
-            }}
-            animate={{
-              opacity: 1,
-              y: 0,
-            }}
-            transition={{
-              delay: i * 0.1,
-            }}
-            className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-sm ${
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.08 }}
+            className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:shadow-md ${
               card.label === "Overdue" && card.value > 0
                 ? "border-l-4 border-l-red-500"
                 : ""
             }`}
           >
-            <div className="mb-4 flex items-start justify-between">
+            <div className="mb-4 flex items-center justify-between">
               <div
-                className={`flex h-11 w-11 items-center justify-center rounded-xl ${card.bg} ${card.color}`}
+                className={`flex h-12 w-12 items-center justify-center rounded-2xl ${card.bg} ${card.color}`}
               >
-                <card.icon className="h-5 w-5" />
+                <card.icon className="h-6 w-6" />
               </div>
             </div>
 
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
               {card.label}
             </p>
 
             <h3
-              className={`mt-1 text-3xl font-bold tracking-tight ${
+              className={`mt-2 text-3xl font-bold tracking-tight ${
                 card.label === "Overdue" && card.value > 0
                   ? "text-red-600"
                   : "text-slate-900"
@@ -167,165 +119,142 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Completion */}
-      {/* <motion.div
-        initial={{
-          opacity: 0,
-          y: 20,
-        }}
-        animate={{
-          opacity: 1,
-          y: 0,
-        }}
-        className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
-      >
-        <div className="mb-5 flex items-center justify-between">
-          <div>
-            <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400">
-              Task Completion
-            </h2>
-
-            <p className="mt-1 text-sm text-slate-500">
-              Overall productivity
-              progress
-            </p>
-          </div>
-
-          <span className="text-3xl font-bold text-indigo-600">
-            {completionRate}%
-          </span>
-        </div>
-
-        <div className="h-3 overflow-hidden rounded-full bg-slate-100">
-          <div
-            className="h-full rounded-full bg-indigo-600 transition-all duration-500"
-            style={{
-              width: `${completionRate}%`,
-            }}
-          />
-        </div>
-      </motion.div> */}
-
       {/* Recent Tasks */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400">
+            <h2 className="text-sm font-bold uppercase tracking-widest text-slate-400">
               Recent Tasks
             </h2>
 
-            <p className="mt-1 text-sm text-slate-500">
-              Latest activity across projects
+            <p className="mt-1 text-xs text-slate-500">
+              Latest task activity overview
             </p>
           </div>
 
           <Link
             to="/tasks"
-            className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:underline"
+            className="flex items-center gap-1 text-sm font-semibold text-indigo-600 hover:text-indigo-700"
           >
             View all
-            <ArrowRight className="h-3 w-3" />
+            <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        {/* Desktop Table */}
+        <div className="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:block">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50">
-                  <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">
                     Task
                   </th>
 
-                  <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">
                     Status
                   </th>
 
-                  <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">
                     Priority
                   </th>
 
-                  <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    Assignee
-                  </th>
-
-                  <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-slate-500 text-right">
+                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">
                     Due Date
                   </th>
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-slate-100">
-                {stats.recentTasks?.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="px-6 py-12 text-center text-sm text-slate-400"
-                    >
-                      No recent tasks found
+                {stats.recentTasks.map((task, i) => (
+                  <motion.tr
+                    key={task.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: i * 0.05 }}
+                    className="hover:bg-slate-50"
+                  >
+                    <td className="px-6 py-4">
+                      <p className="font-medium text-slate-900">
+                        {task.title}
+                      </p>
                     </td>
-                  </tr>
-                ) : (
-                  stats.recentTasks?.map((task, i) => (
-                    <motion.tr
-                      key={task.id}
-                      initial={{
-                        opacity: 0,
-                      }}
-                      animate={{
-                        opacity: 1,
-                      }}
-                      transition={{
-                        delay: i * 0.05,
-                      }}
-                      className="transition-colors hover:bg-slate-50"
-                    >
-                      <td className="px-6 py-4">
-                        <div>
-                          <p className="text-sm font-semibold text-slate-900">
-                            {task.title}
-                          </p>
 
-                          <p className="mt-1 text-xs text-slate-400">
-                            {task.project?.name}
-                          </p>
-                        </div>
-                      </td>
+                    <td className="px-6 py-4">
+                      <StatusBadge status={task.status} />
+                    </td>
 
-                      <td className="px-6 py-4">
-                        <StatusBadge status={task.status} />
-                      </td>
+                    <td className="px-6 py-4">
+                      <PriorityBadge priority={task.priority} />
+                    </td>
 
-                      <td className="px-6 py-4">
-                        <PriorityBadge priority={task.priority} />
-                      </td>
-
-                      <td className="px-6 py-4">
-                        <p className="text-sm font-medium text-slate-700">
-                          {task.assignedTo?.name}
-                        </p>
-                      </td>
-
-                      <td className="px-6 py-4 text-right">
-                        <p className="text-xs font-medium text-slate-500">
-                          {task.dueDate
-                            ? new Date(task.dueDate).toLocaleDateString(
-                                undefined,
-                                {
-                                  month: "short",
-                                  day: "numeric",
-                                  year: "numeric",
-                                },
-                              )
-                            : "No due date"}
-                        </p>
-                      </td>
-                    </motion.tr>
-                  ))
-                )}
+                    <td className="px-6 py-4">
+                      <p className="text-sm text-slate-600">
+                        {task.dueDate
+                          ? new Date(task.dueDate).toLocaleDateString(
+                              undefined,
+                              {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              }
+                            )
+                          : "No Due Date"}
+                      </p>
+                    </td>
+                  </motion.tr>
+                ))}
               </tbody>
             </table>
           </div>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="space-y-4 lg:hidden">
+          {stats.recentTasks.length > 0 ? (
+            stats.recentTasks.map((task, i) => (
+              <motion.div
+                key={task.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="font-semibold text-slate-900">
+                      {task.title}
+                    </h3>
+
+                    <p className="mt-2 text-xs text-slate-500">
+                      Due:
+                      {" "}
+                      {task.dueDate
+                        ? new Date(task.dueDate).toLocaleDateString(
+                            undefined,
+                            {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            }
+                          )
+                        : "No Due Date"}
+                    </p>
+                  </div>
+
+                  <PriorityBadge priority={task.priority} />
+                </div>
+
+                <div className="mt-4">
+                  <StatusBadge status={task.status} />
+                </div>
+              </motion.div>
+            ))
+          ) : (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-10 text-center text-sm text-slate-500">
+              No recent tasks found
+            </div>
+          )}
         </div>
       </div>
     </div>
