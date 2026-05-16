@@ -114,10 +114,59 @@ export function Navbar({ onOpenSidebar }: NavbarProps) {
         </h1>
       </div>
 
-      {/* Right */}
-      <div className="flex items-center gap-4">
-        {/* Progress */}
-        {stats && (
+      {/* Progress */}
+      {stats && (
+        <>
+          {/* Mobile Progress */}
+          <div className="flex items-center justify-center md:hidden">
+            <div className="relative flex items-center justify-center">
+              <svg width="40" height="40" className="-rotate-90">
+                {/* Background */}
+                <circle
+                  cx="20"
+                  cy="20"
+                  r={radius}
+                  strokeWidth="4"
+                  fill="transparent"
+                  className="stroke-slate-200"
+                />
+
+                {/* Progress */}
+                <motion.circle
+                  cx="20"
+                  cy="20"
+                  r={radius}
+                  strokeWidth="4"
+                  fill="transparent"
+                  strokeLinecap="round"
+                  className={
+                    progress === 100
+                      ? "stroke-emerald-500"
+                      : progress >= 60
+                        ? "stroke-indigo-600"
+                        : "stroke-amber-500"
+                  }
+                  strokeDasharray={circumference}
+                  strokeDashoffset={strokeDashoffset}
+                  initial={{
+                    strokeDashoffset: circumference,
+                  }}
+                  animate={{
+                    strokeDashoffset,
+                  }}
+                  transition={{
+                    duration: 0.8,
+                  }}
+                />
+              </svg>
+
+              <div className="absolute text-[9px] font-bold text-slate-700">
+                {progress}%
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop Progress */}
           <div className="hidden items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-2 shadow-sm md:flex">
             <div className="relative flex items-center justify-center">
               <svg width="46" height="46" className="-rotate-90">
@@ -175,82 +224,8 @@ export function Navbar({ onOpenSidebar }: NavbarProps) {
               </p>
             </div>
           </div>
-        )}
-
-        {/* Profile */}
-        <div className="relative" ref={dropdownRef}>
-          <button
-            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            className="flex items-center gap-2 rounded-full p-1 transition-all duration-200 hover:bg-slate-100"
-          >
-            <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-slate-200 text-xs font-bold uppercase tracking-wider text-slate-600 ring-1 ring-slate-200">
-              {initials}
-            </div>
-          </button>
-
-          <AnimatePresence>
-            {isDropdownOpen && (
-              <motion.div
-                initial={{
-                  opacity: 0,
-                  y: 10,
-                  scale: 0.95,
-                }}
-                animate={{
-                  opacity: 1,
-                  y: 0,
-                  scale: 1,
-                }}
-                exit={{
-                  opacity: 0,
-                  y: 10,
-                  scale: 0.95,
-                }}
-                transition={{
-                  duration: 0.15,
-                }}
-                className="absolute right-0 mt-2 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg ring-1 ring-black/5"
-              >
-                <div className="border-b border-slate-100 px-4 py-3">
-                  <p className="truncate text-sm font-semibold text-slate-900">
-                    {user?.name}
-                  </p>
-
-                  <p className="truncate text-[10px] uppercase tracking-tight text-slate-500">
-                    {user?.role}
-                  </p>
-                </div>
-
-                <div className="py-1">
-                  <button
-                    onClick={() => {
-                      navigate("/profile");
-
-                      setIsDropdownOpen(false);
-                    }}
-                    className="flex w-full items-center gap-2 px-4 py-2 text-xs text-slate-600 transition-colors hover:bg-slate-50"
-                  >
-                    <User className="h-3.5 w-3.5" />
-                    Profile
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      logout();
-
-                      setIsDropdownOpen(false);
-                    }}
-                    className="flex w-full items-center gap-2 px-4 py-2 text-xs text-red-600 transition-colors hover:bg-red-50"
-                  >
-                    <LogOut className="h-3.5 w-3.5" />
-                    Logout
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
+        </>
+      )}
     </header>
   );
 }
