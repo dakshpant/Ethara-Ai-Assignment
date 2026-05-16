@@ -103,11 +103,11 @@ export const getTasks = async (req, res) => {
       });
     }
 
-    if (!tasks.length) {
-      return res.status(404).json({
-        message: "No tasks found",
-      });
-    }
+    // if (!tasks.length) {
+    //   return res.status(404).json({
+    //     message: "No tasks found",
+    //   });
+    // }
 
     res.status(200).json({
       tasks,
@@ -192,12 +192,6 @@ export const deleteTask = async (req, res) => {
         id,
       },
     });
-
-    if (!task) {
-      return res.status(404).json({
-        message: "Task not found",
-      });
-    }
 
     await prisma.task.delete({
       where: {

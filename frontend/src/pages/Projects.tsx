@@ -63,7 +63,9 @@ export default function Projects() {
   async function fetchData() {
     try {
       // LOAD CACHE FIRST
-      const cachedProjects = sessionStorage.getItem("projects");
+      const cacheKey = `projects-${user?.id}`;
+
+      const cachedProjects = sessionStorage.getItem(cacheKey);
 
       if (cachedProjects) {
         setProjects(JSON.parse(cachedProjects));
@@ -83,10 +85,7 @@ export default function Projects() {
 
       setProjects(projectsData || []);
 
-      sessionStorage.setItem(
-        "projects",
-        JSON.stringify(projectsData),
-      );
+      sessionStorage.setItem(cacheKey, JSON.stringify(projectsData));
 
       if (isAdmin) {
         const usersData = responses[1] as User[];
@@ -98,7 +97,9 @@ export default function Projects() {
     } catch (error) {
       console.log(error);
 
-      toast.error("Failed to load projects");
+      if (error.response?.status !== 404) {
+        toast.error("Failed to load projects");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -114,10 +115,7 @@ export default function Projects() {
 
       setProjects(updatedProjects);
 
-      sessionStorage.setItem(
-        "projects",
-        JSON.stringify(updatedProjects),
-      );
+      sessionStorage.setItem("projects", JSON.stringify(updatedProjects));
 
       setIsModalOpen(false);
 
@@ -130,10 +128,7 @@ export default function Projects() {
     } catch (error: any) {
       console.log(error);
 
-      toast.error(
-        error.response?.data?.message ||
-          "Failed to create project",
-      );
+      toast.error(error.response?.data?.message || "Failed to create project");
     }
   };
 
@@ -143,7 +138,7 @@ export default function Projects() {
     try {
       await addMemberToProject(selectedProjectId, userId);
 
-      sessionStorage.removeItem("projects");
+      sessionStorage.removeItem(cacheKey);
 
       await fetchData();
 
@@ -151,10 +146,7 @@ export default function Projects() {
     } catch (error: any) {
       console.log(error);
 
-      toast.error(
-        error.response?.data?.message ||
-          "Failed to add member",
-      );
+      toast.error(error.response?.data?.message || "Failed to add member");
     }
   };
 
@@ -174,19 +166,13 @@ export default function Projects() {
 
       setProjects(updatedProjects);
 
-      sessionStorage.setItem(
-        "projects",
-        JSON.stringify(updatedProjects),
-      );
+      sessionStorage.setItem(cacheKey, JSON.stringify(updatedProjects));
 
       toast.success("Project deleted successfully");
     } catch (error: any) {
       console.log(error);
 
-      toast.error(
-        error.response?.data?.message ||
-          "Failed to delete project",
-      );
+      toast.error(error.response?.data?.message || "Failed to delete project");
     }
   };
 
@@ -195,21 +181,15 @@ export default function Projects() {
   }
 
   const filteredMembers = members.filter((m) => {
-    const project = projects.find(
-      (p) => p.id === selectedProjectId,
-    );
+    const project = projects.find((p) => p.id === selectedProjectId);
 
     const alreadyAdded = project?.members?.some(
       (member: any) => member.userId === m.id,
     );
 
     return (
-      (m.name
-        .toLowerCase()
-        .includes(memberSearch.toLowerCase()) ||
-        m.email
-          .toLowerCase()
-          .includes(memberSearch.toLowerCase())) &&
+      (m.name.toLowerCase().includes(memberSearch.toLowerCase()) ||
+        m.email.toLowerCase().includes(memberSearch.toLowerCase())) &&
       !alreadyAdded
     );
   });
@@ -280,9 +260,7 @@ export default function Projects() {
                     <button
                       onClick={() =>
                         setOpenMenuId(
-                          openMenuId === project.id
-                            ? null
-                            : project.id,
+                          openMenuId === project.id ? null : project.id,
                         )
                       }
                       className="rounded-lg p-1 text-slate-300 transition-colors hover:bg-slate-100 hover:text-slate-900"
@@ -352,10 +330,7 @@ export default function Projects() {
         onClose={() => setIsModalOpen(false)}
         title="Create New Project"
       >
-        <form
-          onSubmit={handleCreateProject}
-          className="space-y-4"
-        >
+        <form onSubmit={handleCreateProject} className="space-y-4">
           <div>
             <label className="mb-1.5 ml-1 block text-[10px] font-bold uppercase tracking-widest text-neutral-400">
               Project Name
@@ -416,9 +391,7 @@ export default function Projects() {
 
             <input
               value={memberSearch}
-              onChange={(e) =>
-                setMemberSearch(e.target.value)
-              }
+              onChange={(e) => setMemberSearch(e.target.value)}
               className="w-full rounded-xl border border-neutral-100 bg-neutral-50/50 py-2.5 pl-10 pr-4 text-sm transition-all focus:border-neutral-900 focus:bg-white focus:outline-none"
               placeholder="Search by name or email..."
             />

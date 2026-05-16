@@ -313,7 +313,7 @@ async function fetchData() {
       </div>
 
       {/* Project Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar border-b border-slate-100 pb-1">
+      <div className="flex flex-col gap-2 border-b border-slate-100 pb-3 md:flex-row md:items-center md:overflow-x-auto no-scrollbar">
         <button
           onClick={() => setSelectedProjectId("ALL")}
           className={cn(
@@ -349,135 +349,178 @@ async function fetchData() {
           description="Create a project first."
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {stages.map((stage) => (
-            <div key={stage.status} className="flex flex-col gap-4">
-              <div className="flex items-center justify-between px-2">
-                <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                  {stage.label}
+        <div className="flex flex-col gap-5 xl:grid xl:grid-cols-3">
+  {stages.map((stage) => (
+    <div
+      key={stage.status}
+      className="w-full min-w-0"
+    >
+      {/* Header */}
+      <div className="mb-3 flex items-center justify-between px-1">
+        <h3 className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-slate-500">
+          {stage.label}
 
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[10px] text-slate-400">
-                    {
-                      filteredTasks.filter((t) => t.status === stage.status)
-                        .length
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[10px] text-slate-400">
+            {
+              filteredTasks.filter(
+                (t) =>
+                  t.status === stage.status,
+              ).length
+            }
+          </span>
+        </h3>
+      </div>
+
+      {/* Column */}
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-slate-50/40 p-2">
+        <AnimatePresence mode="popLayout">
+          {filteredTasks
+            .filter(
+              (t) =>
+                t.status === stage.status,
+            )
+            .map((task, i) => (
+              <motion.div
+                key={task.id}
+                layout
+                initial={{
+                  opacity: 0,
+                  y: 10,
+                }}
+                animate={{
+                  opacity: 1,
+                  y: 0,
+                }}
+                exit={{
+                  opacity: 0,
+                  scale: 0.95,
+                }}
+                transition={{
+                  delay: i * 0.05,
+                }}
+                className="w-full overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+              >
+                {/* Top */}
+                <div className="flex items-start justify-between gap-2">
+                  <PriorityBadge
+                    priority={
+                      task.priority
                     }
-                  </span>
-                </h3>
-              </div>
+                  />
 
-              <div className="flex flex-col gap-3 min-h-[500px] border-2 border-dashed border-slate-100/50 rounded-2xl p-2 bg-slate-50/30">
-                <AnimatePresence mode="popLayout">
-                  {filteredTasks
-                    .filter((t) => t.status === stage.status)
-                    .map((task, i) => (
-                      <motion.div
-                        key={task.id}
-                        layout
-                        initial={{
-                          opacity: 0,
-                          y: 10,
-                        }}
-                        animate={{
-                          opacity: 1,
-                          y: 0,
-                        }}
-                        exit={{
-                          opacity: 0,
-                          scale: 0.95,
-                        }}
-                        transition={{
-                          delay: i * 0.05,
-                        }}
-                        className="group relative flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-indigo-200 transition-all"
-                      >
-                        <div className="flex items-start justify-between">
-                          <PriorityBadge priority={task.priority} />
+                  {isAdmin && (
+                    <button
+                      onClick={() =>
+                        handleDeleteTask(
+                          task.id,
+                        )
+                      }
+                      className="rounded-lg p-1 text-slate-300 transition-colors hover:bg-red-50 hover:text-red-600"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
 
-                          {isAdmin && (
-                            <button
-                              onClick={() => handleDeleteTask(task.id)}
-                              className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-600 transition-all p-1"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </div>
+                {/* Title */}
+                <h4 className="mt-3 break-words text-sm font-bold leading-snug text-slate-900">
+                  {task.title}
+                </h4>
 
-                        <h4 className="text-sm font-bold text-slate-900 tracking-tight leading-snug">
-                          {task.title}
-                        </h4>
+                {/* Description */}
+                <p className="mt-2 break-words text-xs leading-relaxed text-slate-500">
+                  {task.description ||
+                    "No description"}
+                </p>
 
-                        <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
-                          {task.description}
-                        </p>
+                {/* Footer */}
+                <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-3">
+                  {/* User */}
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-[10px] font-bold uppercase text-slate-500">
+                      {task.assignedTo?.name?.[0] ||
+                        "?"}
+                    </div>
 
-                        <div className="mt-2 flex items-center justify-between border-t border-slate-50 pt-3">
-                          <div className="flex items-center gap-1.5">
-                            <div className="h-6 w-6 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200 text-[10px] font-bold text-slate-400">
-                              {task.assignedTo?.name?.[0] || "?"}
-                            </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[11px] font-semibold text-slate-600">
+                        {task.assignedTo
+                          ?.name ||
+                          "Unknown"}
+                      </p>
 
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                              {task.dueDate
-                                ? new Date(task.dueDate).toLocaleDateString(
-                                    undefined,
-                                    {
-                                      month: "short",
-                                      day: "numeric",
-                                    },
-                                  )
-                                : "No Date"}
-                            </span>
-                          </div>
-
-                          <div className="flex gap-1">
-                            {stage.status !== "TODO" && (
-                              <button
-                                onClick={() =>
-                                  handleUpdateStatus(
-                                    task.id,
-                                    stage.status === "DONE"
-                                      ? "IN_PROGRESS"
-                                      : "TODO",
-                                  )
-                                }
-                                className="h-6 w-6 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:text-indigo-600 transition-colors"
-                              >
-                                <ArrowRight className="h-3 w-3 rotate-180" />
-                              </button>
-                            )}
-
-                            {stage.status !== "DONE" && (
-                              <button
-                                onClick={() =>
-                                  handleUpdateStatus(
-                                    task.id,
-                                    stage.status === "TODO"
-                                      ? "IN_PROGRESS"
-                                      : "DONE",
-                                  )
-                                }
-                                className="h-6 w-6 flex items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all shadow-sm shadow-indigo-100"
-                              >
-                                <ArrowRight className="h-3 w-3" />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
-                </AnimatePresence>
-
-                {filteredTasks.filter((t) => t.status === stage.status)
-                  .length === 0 && (
-                  <div className="flex-1 flex items-center justify-center text-[10px] font-bold uppercase tracking-widest text-slate-300">
-                    Empty
+                      <p className="text-[10px] uppercase tracking-wider text-slate-400">
+                        {task.dueDate
+                          ? new Date(
+                              task.dueDate,
+                            ).toLocaleDateString(
+                              undefined,
+                              {
+                                month:
+                                  "short",
+                                day: "numeric",
+                              },
+                            )
+                          : "No Date"}
+                      </p>
+                    </div>
                   </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center justify-end gap-2">
+                    {stage.status !==
+                      "TODO" && (
+                      <button
+                        onClick={() =>
+                          handleUpdateStatus(
+                            task.id,
+                            stage.status ===
+                              "DONE"
+                              ? "IN_PROGRESS"
+                              : "TODO",
+                          )
+                        }
+                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-all hover:border-indigo-200 hover:text-indigo-600"
+                      >
+                        <ArrowRight className="h-4 w-4 rotate-180" />
+                      </button>
+                    )}
+
+                    {stage.status !==
+                      "DONE" && (
+                      <button
+                        onClick={() =>
+                          handleUpdateStatus(
+                            task.id,
+                            stage.status ===
+                              "TODO"
+                              ? "IN_PROGRESS"
+                              : "DONE",
+                          )
+                        }
+                        className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white transition-all hover:bg-indigo-700"
+                      >
+                        <ArrowRight className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+        </AnimatePresence>
+
+        {filteredTasks.filter(
+          (t) =>
+            t.status === stage.status,
+        ).length === 0 && (
+          <div className="flex h-32 items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white/50 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-300">
+            Empty
+          </div>
+        )}
+      </div>
+    </div>
+  ))}
+</div>
       )}
 
       {/* Create Task Modal */}

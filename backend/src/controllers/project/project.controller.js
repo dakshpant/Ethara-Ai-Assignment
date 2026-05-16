@@ -88,11 +88,11 @@ export const getProjects = async (req, res) => {
       });
     }
 
-    if (!projects.length) {
-      return res.status(404).json({
-        message: "No projects found",
-      });
-    }
+    // if (!projects.length) {
+    //   return res.status(404).json({
+    //     message: "No projects found",
+    //   });
+    // }
 
     res.status(200).json({
       projects,
@@ -191,11 +191,11 @@ export const deleteProject = async (req, res) => {
       },
     });
 
-    if (!project) {
-      return res.status(404).json({
-        message: "Project not found",
-      });
-    }
+    // if (!project) {
+    //   return res.status(404).json({
+    //     message: "Project not found",
+    //   });
+    // }
 
     // Delete project members
     await prisma.projectMember.deleteMany({
