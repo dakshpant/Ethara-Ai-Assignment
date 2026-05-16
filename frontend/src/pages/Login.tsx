@@ -16,20 +16,72 @@ export default function Login() {
   const location = useLocation();
   const from = location.state?.from?.pathname || "/";
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    try {
-      const data = await loginUser(email, password);
-      login(data.token, data.user);
-      toast.success("Welcome back!");
-      navigate(from, { replace: true });
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Login failed");
-    } finally {
+const handleSubmit = async (
+  e: React.FormEvent,
+) => {
+  e.preventDefault();
+
+  setIsLoading(true);
+
+  try {
+    if (!email.trim()) {
+      toast.error(
+        "Email is required",
+      );
+
       setIsLoading(false);
+
+      return;
     }
-  };
+
+    if (!password.trim()) {
+      toast.error(
+        "Password is required",
+      );
+
+      setIsLoading(false);
+
+      return;
+    }
+
+    if (password.length < 6) {
+      toast.error(
+        "Password must be at least 6 characters",
+      );
+
+      setIsLoading(false);
+
+      return;
+    }
+
+    const data =
+      await loginUser(
+        email,
+        password,
+      );
+
+    login(
+      data.token,
+      data.user,
+    );
+
+    toast.success(
+      "Welcome back!",
+    );
+
+    navigate(from, {
+      replace: true,
+    });
+  } catch (error: any) {
+    toast.error(
+      error.response?.data
+        ?.message ||
+        "Login failed",
+    );
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4 select-none">

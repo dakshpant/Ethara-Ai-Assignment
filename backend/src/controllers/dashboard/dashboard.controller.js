@@ -39,11 +39,16 @@ export const getDashboardData = async (req, res) => {
 
       recentTasks = await prisma.task.findMany({
         take: 5,
+
         orderBy: {
           createdAt: "desc",
         },
-      });
 
+        include: {
+          assignedTo: true,
+          project: true,
+        },
+      });
     } else {
       // MEMBER DASHBOARD
       totalTasks = await prisma.task.count({
@@ -84,9 +89,16 @@ export const getDashboardData = async (req, res) => {
         where: {
           assignedToId: req.user.id,
         },
+
         take: 5,
+
         orderBy: {
           createdAt: "desc",
+        },
+
+        include: {
+          assignedTo: true,
+          project: true,
         },
       });
     }
@@ -98,7 +110,6 @@ export const getDashboardData = async (req, res) => {
       overdueTasks,
       recentTasks,
     });
-
   } catch (error) {
     console.log(error);
 

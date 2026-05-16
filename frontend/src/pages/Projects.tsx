@@ -29,32 +29,24 @@ export default function Projects() {
 
   const [isLoading, setIsLoading] = useState(true);
 
-  const [isModalOpen, setIsModalOpen] =
-    useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const [
-    isMemberModalOpen,
-    setIsMemberModalOpen,
-  ] = useState(false);
+  const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
 
-  const [
-    selectedProjectId,
-    setSelectedProjectId,
-  ] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
+    null,
+  );
 
-  const [newProject, setNewProject] =
-    useState({
-      name: "",
-      description: "",
-    });
+  const [newProject, setNewProject] = useState({
+    name: "",
+    description: "",
+  });
 
-  const [memberSearch, setMemberSearch] =
-    useState("");
+  const [memberSearch, setMemberSearch] = useState("");
 
   const { user } = useAuth();
 
-  const isAdmin =
-    user?.role === "ADMIN";
+  const isAdmin = user?.role === "ADMIN";
 
   useEffect(() => {
     fetchData();
@@ -62,124 +54,115 @@ export default function Projects() {
 
   async function fetchData() {
     try {
-      const [
-        projectsData,
-        usersData,
-      ] = await Promise.all([
-        getProjects(),
-        getUsers(),
-      ]);
+      // LOAD CACHED PROJECTS FIRST
+      const cachedProjects = sessionStorage.getItem("projects");
 
-      setProjects(
-        projectsData || [],
-      );
+      if (cachedProjects) {
+        setProjects(JSON.parse(cachedProjects));
 
-      setMembers(
-        usersData || [],
-      );
+        setIsLoading(false);
+      }
+
+      const requests = [getProjects()];
+
+      // ONLY ADMIN FETCHES USERS
+      if (isAdmin) {
+        requests.push(getUsers());
+      }
+
+      const responses = await Promise.all(requests);
+
+      // PROJECTS
+      const projectsData = responses[0] as Project[];
+
+      setProjects(projectsData || []);
+
+      // UPDATE CACHE
+      sessionStorage.setItem("projects", JSON.stringify(projectsData));
+
+      // USERS ONLY FOR ADMIN
+      if (isAdmin) {
+        const usersData = responses[1] as User[];
+
+        setMembers(usersData || []);
+      } else {
+        setMembers([]);
+      }
     } catch (error) {
       console.log(error);
 
-      toast.error(
-        "Failed to load projects",
-      );
+      toast.error("Failed to load projects");
     } finally {
       setIsLoading(false);
     }
   }
 
-  const handleCreateProject =
-    async (
-      e: React.FormEvent,
-    ) => {
-      e.preventDefault();
+  const handleCreateProject = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-      try {
-        const project =
-          await createProject(
-            newProject,
-          );
+    try {
+      const project = await createProject(newProject);
 
-        setProjects((prev) => [
-          ...prev,
-          project,
-        ]);
+      // UPDATE STATE
+      const updatedProjects = [...projects, project];
 
-        setIsModalOpen(false);
+      setProjects(updatedProjects);
 
-        setNewProject({
-          name: "",
-          description: "",
-        });
+      // UPDATE CACHE
+      sessionStorage.setItem("projects", JSON.stringify(updatedProjects));
 
-        toast.success(
-          "Project created successfully",
-        );
-      } catch (error) {
-        console.log(error);
+      setIsModalOpen(false);
 
-        toast.error(
-          "Failed to create project",
-        );
-      }
-    };
+      setNewProject({
+        name: "",
+        description: "",
+      });
 
-  const handleAddMember =
-    async (userId: string) => {
-      if (!selectedProjectId)
-        return;
+      toast.success("Project created successfully");
+    } catch (error: any) {
+      console.log(error);
 
-      try {
-        await addMemberToProject(
-          selectedProjectId,
-          userId,
-        );
+      toast.error(error.response?.data?.message || "Failed to create project");
+    }
+  };
 
-        await fetchData();
+  const handleAddMember = async (userId: string) => {
+    if (!selectedProjectId) return;
 
-        toast.success(
-          "Member added to project",
-        );
-      } catch (error) {
-        console.log(error);
+    try {
+      await addMemberToProject(selectedProjectId, userId);
 
-        toast.error(
-          "Failed to add member",
-        );
-      }
-    };
+      // CLEAR OLD CACHE
+      sessionStorage.removeItem("projects");
 
-  if (isLoading) return <Loader />;
+      // REFRESH DATA
+      await fetchData();
 
-  const filteredMembers =
-    members.filter((m) => {
-      const project =
-        projects.find(
-          (p) =>
-            p.id ===
-            selectedProjectId,
-        );
+      toast.success("Member added to project");
+    } catch (error: any) {
+      console.log(error);
 
-      const alreadyAdded =
-        project?.members?.some(
-          (member: any) =>
-            member.userId === m.id,
-        );
+      toast.error(error.response?.data?.message || "Failed to add member");
+    }
+  };
 
-      return (
-        (m.name
-          .toLowerCase()
-          .includes(
-            memberSearch.toLowerCase(),
-          ) ||
-          m.email
-            .toLowerCase()
-            .includes(
-              memberSearch.toLowerCase(),
-            )) &&
-        !alreadyAdded
-      );
-    });
+  if (isLoading && projects.length === 0) {
+    return <Loader />;
+  }
+
+  const filteredMembers = members.filter((m) => {
+    const project = projects.find((p) => p.id === selectedProjectId);
+
+    const alreadyAdded = project?.members?.some(
+      (member: any) => member.userId === m.id,
+    );
+
+    return (
+      (m.name.toLowerCase().includes(memberSearch.toLowerCase()) ||
+        m.email.toLowerCase().includes(memberSearch.toLowerCase())) &&
+      !alreadyAdded
+    );
+  });
 
   return (
     <div className="space-y-8">
@@ -191,16 +174,13 @@ export default function Projects() {
           </h2>
 
           <p className="mt-1 text-sm text-slate-500">
-            Overview of all ongoing
-            organizational work.
+            Overview of all ongoing organizational work.
           </p>
         </div>
 
         {isAdmin && (
           <button
-            onClick={() =>
-              setIsModalOpen(true)
-            }
+            onClick={() => setIsModalOpen(true)}
             className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white transition-all hover:bg-indigo-700 active:scale-95 shadow-sm shadow-indigo-200"
           >
             <Plus className="h-4 w-4" />
@@ -222,94 +202,76 @@ export default function Projects() {
         />
       ) : (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {projects.map(
-            (project, i) => (
-              <motion.div
-                key={project.id}
-                initial={{
-                  opacity: 0,
-                  y: 20,
-                }}
-                animate={{
-                  opacity: 1,
-                  y: 0,
-                }}
-                transition={{
-                  delay: i * 0.05,
-                }}
-                className="group flex flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-indigo-200"
-              >
-                <div className="mb-4 flex items-start justify-between">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 text-slate-900">
-                    <Briefcase className="h-5 w-5" />
-                  </div>
+          {projects.map((project, i) => (
+            <motion.div
+              key={project.id}
+              initial={{
+                opacity: 0,
+                y: 20,
+              }}
+              animate={{
+                opacity: 1,
+                y: 0,
+              }}
+              transition={{
+                delay: i * 0.05,
+              }}
+              className="group flex flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-indigo-200"
+            >
+              <div className="mb-4 flex items-start justify-between">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 text-slate-900">
+                  <Briefcase className="h-5 w-5" />
+                </div>
 
-                  <button className="text-slate-300 hover:text-slate-900">
-                    <MoreVertical className="h-4 w-4" />
+                <button className="text-slate-300 hover:text-slate-900">
+                  <MoreVertical className="h-4 w-4" />
+                </button>
+              </div>
+
+              <h3 className="text-sm font-bold text-slate-800 group-hover:text-indigo-600 transition-colors tracking-tight">
+                {project.name}
+              </h3>
+
+              <p className="mt-2 flex-grow text-[11px] text-slate-500 leading-relaxed line-clamp-2">
+                {project.description}
+              </p>
+
+              <div className="mt-6 flex items-center justify-between border-t border-slate-50 pt-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1.5 text-slate-400">
+                    <Users className="h-3.5 w-3.5" />
+
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      {project.members?.length || 0} Members
+                    </span>
+                  </div>
+                </div>
+
+                {isAdmin && (
+                  <button
+                    onClick={() => {
+                      setSelectedProjectId(project.id);
+
+                      setIsMemberModalOpen(true);
+                    }}
+                    className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-100 text-slate-400 hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
+                  >
+                    <PlusCircle className="h-4 w-4" />
                   </button>
-                </div>
-
-                <h3 className="text-sm font-bold text-slate-800 group-hover:text-indigo-600 transition-colors tracking-tight">
-                  {project.name}
-                </h3>
-
-                <p className="mt-2 flex-grow text-[11px] text-slate-500 leading-relaxed line-clamp-2">
-                  {
-                    project.description
-                  }
-                </p>
-
-                <div className="mt-6 flex items-center justify-between border-t border-slate-50 pt-4">
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-1.5 text-slate-400">
-                      <Users className="h-3.5 w-3.5" />
-
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        {project.members
-                          ?.length ||
-                          0}{" "}
-                        Members
-                      </span>
-                    </div>
-                  </div>
-
-                  {isAdmin && (
-                    <button
-                      onClick={() => {
-                        setSelectedProjectId(
-                          project.id,
-                        );
-
-                        setIsMemberModalOpen(
-                          true,
-                        );
-                      }}
-                      className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-100 text-slate-400 hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
-                    >
-                      <PlusCircle className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-              </motion.div>
-            ),
-          )}
+                )}
+              </div>
+            </motion.div>
+          ))}
         </div>
       )}
 
       {/* Create Project Modal */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() =>
-          setIsModalOpen(false)
-        }
+        onClose={() => setIsModalOpen(false)}
         title="Create New Project"
       >
-        <form
-          onSubmit={
-            handleCreateProject
-          }
-          className="space-y-4"
-        >
+        <form onSubmit={handleCreateProject} className="space-y-4">
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-widest text-neutral-400 mb-1.5 ml-1">
               Project Name
@@ -317,9 +279,7 @@ export default function Projects() {
 
             <input
               required
-              value={
-                newProject.name
-              }
+              value={newProject.name}
               onChange={(e) =>
                 setNewProject({
                   ...newProject,
@@ -339,14 +299,11 @@ export default function Projects() {
             <textarea
               required
               rows={3}
-              value={
-                newProject.description
-              }
+              value={newProject.description}
               onChange={(e) =>
                 setNewProject({
                   ...newProject,
-                  description:
-                    e.target.value,
+                  description: e.target.value,
                 })
               }
               className="w-full rounded-xl border border-neutral-100 bg-neutral-50/50 px-4 py-3 text-sm transition-all focus:border-neutral-900 focus:bg-white focus:outline-none resize-none"
@@ -365,14 +322,8 @@ export default function Projects() {
 
       {/* Add Member Modal */}
       <Modal
-        isOpen={
-          isMemberModalOpen
-        }
-        onClose={() =>
-          setIsMemberModalOpen(
-            false,
-          )
-        }
+        isOpen={isMemberModalOpen}
+        onClose={() => setIsMemberModalOpen(false)}
         title="Add Team Members"
       >
         <div className="space-y-4">
@@ -381,48 +332,36 @@ export default function Projects() {
 
             <input
               value={memberSearch}
-              onChange={(e) =>
-                setMemberSearch(
-                  e.target.value,
-                )
-              }
+              onChange={(e) => setMemberSearch(e.target.value)}
               className="w-full rounded-xl border border-neutral-100 bg-neutral-50/50 pl-10 pr-4 py-2.5 text-sm transition-all focus:border-neutral-900 focus:bg-white focus:outline-none"
               placeholder="Search by name or email..."
             />
           </div>
 
           <div className="max-h-60 overflow-y-auto pr-1 space-y-1">
-            {filteredMembers.map(
-              (m) => (
-                <button
-                  key={m.id}
-                  onClick={() =>
-                    handleAddMember(
-                      m.id,
-                    )
-                  }
-                  className="flex w-full items-center justify-between rounded-xl p-3 text-left transition-colors hover:bg-neutral-50"
-                >
-                  <div>
-                    <p className="text-sm font-semibold text-neutral-900">
-                      {m.name}
-                    </p>
+            {filteredMembers.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => handleAddMember(m.id)}
+                className="flex w-full items-center justify-between rounded-xl p-3 text-left transition-colors hover:bg-neutral-50"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-neutral-900">
+                    {m.name}
+                  </p>
 
-                    <p className="text-[10px] text-neutral-400 font-mono">
-                      {m.email}
-                    </p>
-                  </div>
+                  <p className="text-[10px] text-neutral-400 font-mono">
+                    {m.email}
+                  </p>
+                </div>
 
-                  <PlusCircle className="h-4 w-4 text-neutral-300" />
-                </button>
-              ),
-            )}
+                <PlusCircle className="h-4 w-4 text-neutral-300" />
+              </button>
+            ))}
 
-            {filteredMembers.length ===
-              0 && (
+            {filteredMembers.length === 0 && (
               <p className="py-8 text-center text-xs text-neutral-400">
-                No members available
-                to add
+                No members available to add
               </p>
             )}
           </div>

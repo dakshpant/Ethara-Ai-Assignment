@@ -142,7 +142,11 @@ export const getUsers = async (req, res) => {
         role: true,
       },
     });
-
+    if (!users.length) {
+      return res.status(404).json({
+        message: "No users found",
+      });
+    }
     res.status(200).json({
       users,
     });

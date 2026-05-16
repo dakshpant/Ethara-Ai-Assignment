@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
 import { signupUser } from "../services/auth.service";
 import { toast } from "react-hot-toast";
 import { UserPlus } from "lucide-react";
@@ -12,30 +11,71 @@ export default function Signup() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    setIsLoading(true);
+const handleSubmit = async (
+  e: React.FormEvent,
+) => {
+  e.preventDefault();
 
-    try {
-      await signupUser({
-        name,
-        email,
-        password, //role not passes as there is a check for admin role in backend and by default it will be user only one admin can exist rest all members automatically assigned user role
-      });
+  setIsLoading(true);
 
-      toast.success("Account created successfully!");
+  try {
+    if (name.trim().length < 2) {
+      toast.error(
+        "Name must be at least 2 characters",
+      );
 
-      navigate("/login");
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Signup failed");
-    } finally {
       setIsLoading(false);
+
+      return;
     }
-  };
+
+    if (!emailRegex.test(email.trim())) {
+      toast.error(
+        "Enter a valid email",
+      );
+
+      setIsLoading(false);
+
+      return;
+    }
+
+    if (password.length < 6) {
+      toast.error(
+        "Password must be at least 6 characters",
+      );
+
+      setIsLoading(false);
+
+      return;
+    }
+
+    await signupUser({
+      name: name.trim(),
+      email: email.trim(),
+      password,
+
+      // Role assigned automatically by backend
+    });
+
+    toast.success(
+      "Account created successfully!",
+    );
+
+    navigate("/login");
+  } catch (error: any) {
+    toast.error(
+      error.response?.data
+        ?.message ||
+        "Signup failed",
+    );
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4 select-none">
@@ -69,6 +109,7 @@ export default function Signup() {
                 id="name"
                 type="text"
                 required
+                disabled={isLoading}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="John Doe"
@@ -103,6 +144,7 @@ export default function Signup() {
                 id="password"
                 type="password"
                 required
+                disabled={isLoading}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"

@@ -24,7 +24,7 @@ export default function Tasks() {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [members, setMembers] = useState<User[]>([]);
-
+  const [isCreatingTask, setIsCreatingTask] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | "ALL">(
     "ALL",
   );
@@ -46,114 +46,216 @@ export default function Tasks() {
     fetchData();
   }, []);
 
-  async function fetchData() {
-    try {
-      const [tasksData, projectsData, usersData] = await Promise.all([
-        getTasks(),
-        getProjects(),
-        getUsers(),
-      ]);
-
-      setTasks(tasksData || []);
-      setProjects(projectsData || []);
-      setMembers(usersData || []);
-      if (projectsData?.length > 0) {
-        setSelectedProjectId(projectsData[0].id);
-      }
-    } catch (error) {
-      console.log(error);
-      toast.error("Failed to load tasks");
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-const handleCreateTask = async (e: React.FormEvent) => {
-  e.preventDefault();
-
+async function fetchData() {
   try {
-    const task = await createTask(newTask);
-
-   setTasks((prev) => [...prev, task]); 
-
-    setIsModalOpen(false);
-
-    setNewTask({
-      title: "",
-      description: "",
-      projectId:
-        selectedProjectId !== "ALL"
-          ? selectedProjectId
-          : "",
-      assignedToId: "",
-      priority: "MEDIUM",
-      dueDate: new Date()
-        .toISOString()
-        .split("T")[0],
-    });
-
-    toast.success("Task created successfully");
-  } catch (error) {
-    console.log(error);
-    toast.error("Failed to create task");
-  }
-};
-
-const handleUpdateStatus = async (
-  id: string,
-  status: TaskStatus,
-) => {
-  try {
-    const updatedTask =
-      await updateTaskStatus(
-        id,
-        status,
+    // LOAD CACHED TASKS
+    const cachedTasks =
+      sessionStorage.getItem(
+        "tasks",
       );
 
-    setTasks(
-      tasks.map((t) =>
-        t.id === id
-          ? updatedTask
-          : t,
+    const cachedProjects =
+      sessionStorage.getItem(
+        "projects",
+      );
+
+    if (cachedTasks) {
+      setTasks(
+        JSON.parse(
+          cachedTasks,
+        ),
+      );
+    }
+
+    if (cachedProjects) {
+      setProjects(
+        JSON.parse(
+          cachedProjects,
+        ),
+      );
+    }
+
+    setIsLoading(false);
+
+    const requests = [
+      getTasks(),
+      getProjects(),
+    ];
+
+    // ONLY ADMIN FETCHES USERS
+    if (
+      user?.role === "ADMIN"
+    ) {
+      requests.push(
+        getUsers(),
+      );
+    }
+
+    const responses =
+      await Promise.all(
+        requests,
+      );
+
+    const tasksData =
+      responses[0] as Task[];
+
+    const projectsData =
+      responses[1] as Project[];
+
+    // UPDATE STATE
+    setTasks(tasksData || []);
+
+    setProjects(
+      projectsData || [],
+    );
+
+    // CACHE DATA
+    sessionStorage.setItem(
+      "tasks",
+      JSON.stringify(
+        tasksData,
       ),
     );
 
-    toast.success("Task updated");
+    sessionStorage.setItem(
+      "projects",
+      JSON.stringify(
+        projectsData,
+      ),
+    );
+
+    // ONLY ADMIN HAS USERS RESPONSE
+    if (
+      user?.role === "ADMIN"
+    ) {
+      const usersData =
+        responses[2] as User[];
+
+      setMembers(
+        usersData || [],
+      );
+    }
+
+    // DEFAULT SELECTED PROJECT
+    if (
+      projectsData?.length > 0
+    ) {
+      setSelectedProjectId(
+        projectsData[0].id,
+      );
+    }
   } catch (error) {
     console.log(error);
+
     toast.error(
-      "Failed to update status",
+      "Failed to load tasks",
     );
+  } finally {
+    setIsLoading(false);
   }
-};
+}
 
-const handleDeleteTask = async (
-  id: string,
-) => {
-  if (
-    !confirm(
-      "Are you sure you want to delete this task?",
-    )
-  )
-    return;
+  const handleCreateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  try {
-    await deleteTask(id);
+    setIsCreatingTask(true);
 
-    setTasks(
-      tasks.filter((t) => t.id !== id),
-    );
+    try {
+      if (!newTask.title.trim()) {
+        toast.error("Task title is required");
 
-    toast.success("Task deleted");
-  } catch (error) {
-    console.log(error);
-    toast.error(
-      "Failed to delete task",
-    );
+        return;
+      }
+
+      if (newTask.title.trim().length < 3) {
+        toast.error("Task title must be at least 3 characters");
+
+        return;
+      }
+
+      if (!newTask.projectId) {
+        toast.error("Please select a project");
+
+        return;
+      }
+
+      if (!newTask.assignedToId) {
+        toast.error("Please assign the task");
+
+        return;
+      }
+
+      const task = await createTask({
+        ...newTask,
+        title: newTask.title.trim(),
+        description: newTask.description.trim(),
+      });
+
+      setTasks((prev) => [...prev, task]);
+
+      setIsModalOpen(false);
+
+      setNewTask({
+        title: "",
+        description: "",
+        projectId: selectedProjectId !== "ALL" ? selectedProjectId : "",
+        assignedToId: "",
+        priority: "MEDIUM",
+        dueDate: new Date().toISOString().split("T")[0],
+      });
+
+      toast.success("Task created successfully");
+    } catch (error: any) {
+      console.log(error);
+
+      toast.error(error.response?.data?.message || "Failed to create task");
+    } finally {
+      setIsCreatingTask(false);
+    }
+  };
+
+  const handleUpdateStatus = async (id: string, status: TaskStatus) => {
+    try {
+      const updatedTask = await updateTaskStatus(id, status);
+
+      setTasks((prev) => prev.map((t) => (t.id === id ? updatedTask : t)));
+
+      toast.success(
+        `Task moved to ${
+          status === "DONE"
+            ? "Done"
+            : status === "IN_PROGRESS"
+              ? "In Progress"
+              : "To Do"
+        }`,
+      );
+    } catch (error: any) {
+      console.log(error);
+
+      toast.error(error.response?.data?.message || "Failed to update status");
+    }
+  };
+  const handleDeleteTask = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this task?")) {
+      return;
+    }
+
+    try {
+      await deleteTask(id);
+
+      setTasks((prev) => prev.filter((t) => t.id !== id));
+
+      toast.success("Task deleted");
+    } catch (error: any) {
+      console.log(error);
+
+      toast.error(error.response?.data?.message || "Failed to delete task");
+    }
+  };
+
+  if (isLoading && tasks.length === 0) {
+    return <Loader />;
   }
-};
-
-  if (isLoading) return <Loader />;
 
   const filteredTasks =
     selectedProjectId === "ALL"
@@ -384,105 +486,185 @@ const handleDeleteTask = async (
         onClose={() => setIsModalOpen(false)}
         title="Create New Task"
       >
-        <form onSubmit={handleCreateTask} className="space-y-4">
-          <input
-            required
-            value={newTask.title}
-            onChange={(e) =>
-              setNewTask({
-                ...newTask,
-                title: e.target.value,
-              })
-            }
-            placeholder="Task title"
-            className="w-full rounded-xl border border-slate-200 px-4 py-3"
-          />
+        <form onSubmit={handleCreateTask} className="space-y-5">
+          {/* Title */}
+          <div className="space-y-1.5">
+            <label
+              htmlFor="title"
+              className="ml-1 block text-[10px] font-bold uppercase tracking-widest text-slate-400"
+            >
+              Task Title
+            </label>
 
-          <textarea
-            rows={3}
-            value={newTask.description}
-            onChange={(e) =>
-              setNewTask({
-                ...newTask,
-                description: e.target.value,
-              })
-            }
-            placeholder="Description"
-            className="w-full rounded-xl border border-slate-200 px-4 py-3 resize-none"
-          />
+            <input
+              id="title"
+              required
+              disabled={isCreatingTask}
+              value={newTask.title}
+              onChange={(e) =>
+                setNewTask({
+                  ...newTask,
+                  title: e.target.value,
+                })
+              }
+              placeholder="e.g. Design dashboard layout"
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition-all placeholder:text-slate-300 focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 disabled:opacity-50"
+            />
+          </div>
 
-          <select
-            required
-            value={newTask.projectId}
-            onChange={(e) =>
-              setNewTask({
-                ...newTask,
-                projectId: e.target.value,
-              })
-            }
-            className="w-full rounded-xl border border-slate-200 px-4 py-3"
-          >
-            <option value="">Select Project</option>
+          {/* Description */}
+          <div className="space-y-1.5">
+            <label
+              htmlFor="description"
+              className="ml-1 block text-[10px] font-bold uppercase tracking-widest text-slate-400"
+            >
+              Description
+            </label>
 
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+            <textarea
+              id="description"
+              rows={3}
+              disabled={isCreatingTask}
+              value={newTask.description}
+              onChange={(e) =>
+                setNewTask({
+                  ...newTask,
+                  description: e.target.value,
+                })
+              }
+              placeholder="Add task details..."
+              className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition-all placeholder:text-slate-300 focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 disabled:opacity-50"
+            />
+          </div>
 
-          <select
-            required
-            value={newTask.assignedToId}
-            onChange={(e) =>
-              setNewTask({
-                ...newTask,
-                assignedToId: e.target.value,
-              })
-            }
-            className="w-full rounded-xl border border-slate-200 px-4 py-3"
-          >
-            <option value="">Select Assignee</option>
+          {/* Project */}
+          <div className="space-y-1.5">
+            <label
+              htmlFor="project"
+              className="ml-1 block text-[10px] font-bold uppercase tracking-widest text-slate-400"
+            >
+              Project
+            </label>
 
-            {members.map((member) => (
-              <option key={member.id} value={member.id}>
-                {member.name} ({member.role})
-              </option>
-            ))}
-          </select>
+            <select
+              id="project"
+              required
+              disabled={isCreatingTask}
+              value={newTask.projectId}
+              onChange={(e) =>
+                setNewTask({
+                  ...newTask,
+                  projectId: e.target.value,
+                })
+              }
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition-all focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 disabled:opacity-50"
+            >
+              <option value="">Select Project</option>
 
-          <select
-            value={newTask.priority}
-            onChange={(e) =>
-              setNewTask({
-                ...newTask,
-                priority: e.target.value as Priority,
-              })
-            }
-            className="w-full rounded-xl border border-slate-200 px-4 py-3"
-          >
-            <option value="LOW">Low</option>
-            <option value="MEDIUM">Medium</option>
-            <option value="HIGH">High</option>
-          </select>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          <input
-            type="date"
-            value={newTask.dueDate}
-            onChange={(e) =>
-              setNewTask({
-                ...newTask,
-                dueDate: e.target.value,
-              })
-            }
-            className="w-full rounded-xl border border-slate-200 px-4 py-3"
-          />
+          {/* Assignee */}
+          <div className="space-y-1.5">
+            <label
+              htmlFor="assignee"
+              className="ml-1 block text-[10px] font-bold uppercase tracking-widest text-slate-400"
+            >
+              Assign To
+            </label>
 
+            <select
+              id="assignee"
+              required
+              disabled={isCreatingTask}
+              value={newTask.assignedToId}
+              onChange={(e) =>
+                setNewTask({
+                  ...newTask,
+                  assignedToId: e.target.value,
+                })
+              }
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition-all focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 disabled:opacity-50"
+            >
+              <option value="">Select Assignee</option>
+
+              {members.map((member) => (
+                <option key={member.id} value={member.id}>
+                  {member.name} ({member.role})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Priority */}
+          <div className="space-y-1.5">
+            <label
+              htmlFor="priority"
+              className="ml-1 block text-[10px] font-bold uppercase tracking-widest text-slate-400"
+            >
+              Priority
+            </label>
+
+            <select
+              id="priority"
+              disabled={isCreatingTask}
+              value={newTask.priority}
+              onChange={(e) =>
+                setNewTask({
+                  ...newTask,
+                  priority: e.target.value as Priority,
+                })
+              }
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition-all focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 disabled:opacity-50"
+            >
+              <option value="LOW">Low</option>
+
+              <option value="MEDIUM">Medium</option>
+
+              <option value="HIGH">High</option>
+            </select>
+          </div>
+
+          {/* Due Date */}
+          <div className="space-y-1.5">
+            <label
+              htmlFor="dueDate"
+              className="ml-1 block text-[10px] font-bold uppercase tracking-widest text-slate-400"
+            >
+              Due Date
+            </label>
+
+            <input
+              id="dueDate"
+              type="date"
+              disabled={isCreatingTask}
+              value={newTask.dueDate}
+              onChange={(e) =>
+                setNewTask({
+                  ...newTask,
+                  dueDate: e.target.value,
+                })
+              }
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition-all focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 disabled:opacity-50"
+            />
+          </div>
+
+          {/* Submit */}
           <button
             type="submit"
-            className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white hover:bg-indigo-700"
+            disabled={isCreatingTask}
+            className="flex w-full items-center justify-center rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white transition-all hover:bg-indigo-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Create Task
+            {isCreatingTask ? (
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+            ) : (
+              "Create Task"
+            )}
           </button>
         </form>
       </Modal>
