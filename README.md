@@ -18,13 +18,13 @@ The application allows organizations and teams to:
 ## Frontend
 
 ```txt
-https://your-frontend-url.vercel.app
+https://ethara-ai-assignment-production-8b3a.up.railway.app/
 ```
 
 ## Backend API
 
 ```txt
-https://your-backend-url.up.railway.app
+https://backend-production-7d30.up.railway.app
 ```
 
 ---
@@ -39,6 +39,10 @@ Password: admin123
 ```
 
 ## Member Account
+
+```txt
+Email: aman@example.com
+Password: member123
 
 ```txt
 Email: aman@example.com
@@ -368,7 +372,7 @@ GET /api/dashboard
 ## Clone Repository
 
 ```bash
-git clone https://github.com/your-username/your-repo-name.git
+git clone https://github.com/dakshpant/Ethara-Ai-Assignment.git
 ```
 
 ---
@@ -390,9 +394,11 @@ npm install
 ## Create .env File
 
 ```env
-DATABASE_URL=your_postgresql_database_url
-JWT_SECRET=your_secret_key
 PORT=3000
+
+DATABASE_URL="postgresql://postgres:gIOkrYNJrXlqiFsaKjTYGNSpoQgJEoGp@yamanote.proxy.rlwy.net:45815/railway"
+
+JWT_SECRET=supersecretkey
 ```
 
 ---
@@ -516,16 +522,19 @@ Implemented:
 ## Backend
 
 ```env
-DATABASE_URL=
-JWT_SECRET=
-PORT=
+DATABASE_URL=postgresql://postgres:gIOkrYNJrXlqiFsaKjTYGNSpoQgJEoGp@postgres.railway.internal:5432/railway
+
+JWT_SECRET=supersecretttkeyy123
+
+PORT=3000
+
 NODE_ENV=production
 ```
 
 ## Frontend
 
 ```env
-VITE_API_URL=
+VITE_API_URL=https://backend-production-7d30.up.railway.app
 ```
 
 ---
