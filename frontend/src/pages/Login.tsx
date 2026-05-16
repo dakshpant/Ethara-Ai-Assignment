@@ -1,16 +1,16 @@
 import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import api from "../services/api";
 import { toast } from "react-hot-toast";
 import { LogIn } from "lucide-react";
 import { motion } from "motion/react";
+import { loginUser } from "../services/auth.service";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  
+
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -20,8 +20,8 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const response = await api.post("/auth/login", { email, password });
-      login(response.data.token, response.data.user);
+      const data = await loginUser(email, password);
+      login(data.token, data.user);
       toast.success("Welcome back!");
       navigate(from, { replace: true });
     } catch (error: any) {
@@ -33,7 +33,7 @@ export default function Login() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4 select-none">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-[400px]"
@@ -42,14 +42,21 @@ export default function Login() {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-neutral-900 text-white shadow-xl shadow-neutral-900/10">
             <LogIn className="h-6 w-6" />
           </div>
-          <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">Login to TeamFlow</h1>
-          <p className="mt-2 text-sm text-neutral-500">Enter your credentials to access your account</p>
+          <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">
+            Login to TeamFlow
+          </h1>
+          <p className="mt-2 text-sm text-neutral-500">
+            Enter your credentials to access your account
+          </p>
         </div>
 
         <div className="rounded-2xl border border-neutral-100 bg-white p-8 shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label htmlFor="email" className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5 ml-1">
+              <label
+                htmlFor="email"
+                className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5 ml-1"
+              >
                 Email Address
               </label>
               <input
@@ -63,7 +70,10 @@ export default function Login() {
               />
             </div>
             <div>
-              <label htmlFor="password" className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5 ml-1">
+              <label
+                htmlFor="password"
+                className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5 ml-1"
+              >
                 Password
               </label>
               <input
@@ -93,15 +103,20 @@ export default function Login() {
           <div className="mt-8 text-center">
             <p className="text-sm text-neutral-500">
               Don't have an account?{" "}
-              <Link to="/signup" className="font-semibold text-neutral-900 hover:underline">
+              <Link
+                to="/signup"
+                className="font-semibold text-neutral-900 hover:underline"
+              >
                 Create one
               </Link>
             </p>
           </div>
         </div>
-        
+
         <div className="mt-8 rounded-xl bg-neutral-100/50 p-4 text-center">
-          <p className="text-[10px] uppercase tracking-widest text-neutral-400 font-bold mb-2">Demo Accounts</p>
+          <p className="text-[10px] uppercase tracking-widest text-neutral-400 font-bold mb-2">
+            Demo Accounts
+          </p>
           <div className="flex justify-center gap-4 text-[10px] text-neutral-500 font-mono">
             <span>Admin: admin@example.com / admin123</span>
             <span className="text-neutral-300">|</span>

@@ -1,20 +1,22 @@
 import React, { useState, useEffect } from "react";
-import api from "../services/api";
 import { Task, Project, User, Priority, TaskStatus } from "../types";
 import { useAuth } from "../context/AuthContext";
 import { Loader } from "../components/ui/Loader";
 import { EmptyState } from "../components/ui/EmptyState";
 import { Modal } from "../components/ui/Modal";
 import { PriorityBadge } from "../components/ui/PriorityBadge";
-import {
-  Plus,
-  CheckSquare,
-  Trash2,
-  ArrowRight,
-} from "lucide-react";
+import { Plus, CheckSquare, Trash2, ArrowRight } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "../lib/utils";
+import {
+  getTasks,
+  createTask,
+  updateTaskStatus,
+  deleteTask,
+} from "../services/task.service";
+import { getProjects } from "../services/project.service";
+import { getUsers } from "../services/auth.service";
 
 export default function Tasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -23,9 +25,9 @@ export default function Tasks() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [members, setMembers] = useState<User[]>([]);
 
-  const [selectedProjectId, setSelectedProjectId] = useState<
-    string | "ALL"
-  >("ALL");
+  const [selectedProjectId, setSelectedProjectId] = useState<string | "ALL">(
+    "ALL",
+  );
 
   const [newTask, setNewTask] = useState({
     title: "",
@@ -46,19 +48,17 @@ export default function Tasks() {
 
   async function fetchData() {
     try {
-const [tasksRes, projectsRes, usersRes] =
-  await Promise.all([
-    api.get("/tasks"),
-    api.get("/projects"),
-    api.get("/auth/users"),
-  ]);
+      const [tasksData, projectsData, usersData] = await Promise.all([
+        getTasks(),
+        getProjects(),
+        getUsers(),
+      ]);
 
-      setTasks(tasksRes.data.tasks || []);
-      setProjects(projectsRes.data.projects || []);
-      setMembers(usersRes.data.users || []);
-
-      if (projectsRes.data.projects?.length > 0) {
-        setSelectedProjectId(projectsRes.data.projects[0].id);
+      setTasks(tasksData || []);
+      setProjects(projectsData || []);
+      setMembers(usersData || []);
+      if (projectsData?.length > 0) {
+        setSelectedProjectId(projectsData[0].id);
       }
     } catch (error) {
       console.log(error);
@@ -68,108 +68,97 @@ const [tasksRes, projectsRes, usersRes] =
     }
   }
 
-  const handleCreateTask = async (
-    e: React.FormEvent
-  ) => {
-    e.preventDefault();
+const handleCreateTask = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-    try {
-      const response = await api.post(
-        "/tasks",
-        newTask
+  try {
+    const task = await createTask(newTask);
+
+   setTasks((prev) => [...prev, task]); 
+
+    setIsModalOpen(false);
+
+    setNewTask({
+      title: "",
+      description: "",
+      projectId:
+        selectedProjectId !== "ALL"
+          ? selectedProjectId
+          : "",
+      assignedToId: "",
+      priority: "MEDIUM",
+      dueDate: new Date()
+        .toISOString()
+        .split("T")[0],
+    });
+
+    toast.success("Task created successfully");
+  } catch (error) {
+    console.log(error);
+    toast.error("Failed to create task");
+  }
+};
+
+const handleUpdateStatus = async (
+  id: string,
+  status: TaskStatus,
+) => {
+  try {
+    const updatedTask =
+      await updateTaskStatus(
+        id,
+        status,
       );
 
-      setTasks([
-        ...tasks,
-        response.data.task,
-      ]);
+    setTasks(
+      tasks.map((t) =>
+        t.id === id
+          ? updatedTask
+          : t,
+      ),
+    );
 
-      setIsModalOpen(false);
+    toast.success("Task updated");
+  } catch (error) {
+    console.log(error);
+    toast.error(
+      "Failed to update status",
+    );
+  }
+};
 
-      setNewTask({
-        title: "",
-        description: "",
-        projectId:
-          selectedProjectId !== "ALL"
-            ? selectedProjectId
-            : "",
-        assignedToId: "",
-        priority: "MEDIUM",
-        dueDate: new Date()
-          .toISOString()
-          .split("T")[0],
-      });
-
-      toast.success(
-        "Task created successfully"
-      );
-    } catch (error) {
-      console.log(error);
-      toast.error("Failed to create task");
-    }
-  };
-
-  const handleUpdateStatus = async (
-    id: string,
-    status: TaskStatus
-  ) => {
-    try {
-      const response = await api.patch(
-        `/tasks/${id}`,
-        { status }
-      );
-
-      setTasks(
-        tasks.map((t) =>
-          t.id === id
-            ? response.data.task
-            : t
-        )
-      );
-
-      toast.success("Task updated");
-    } catch (error) {
-      console.log(error);
-      toast.error(
-        "Failed to update status"
-      );
-    }
-  };
-
-  const handleDeleteTask = async (
-    id: string
-  ) => {
-    if (
-      !confirm(
-        "Are you sure you want to delete this task?"
-      )
+const handleDeleteTask = async (
+  id: string,
+) => {
+  if (
+    !confirm(
+      "Are you sure you want to delete this task?",
     )
-      return;
+  )
+    return;
 
-    try {
-      await api.delete(`/tasks/${id}`);
+  try {
+    await deleteTask(id);
 
-      setTasks(
-        tasks.filter((t) => t.id !== id)
-      );
+    setTasks(
+      tasks.filter((t) => t.id !== id),
+    );
 
-      toast.success("Task deleted");
-    } catch (error) {
-      console.log(error);
-      toast.error("Failed to delete task");
-    }
-  };
+    toast.success("Task deleted");
+  } catch (error) {
+    console.log(error);
+    toast.error(
+      "Failed to delete task",
+    );
+  }
+};
 
   if (isLoading) return <Loader />;
 
   const filteredTasks =
     selectedProjectId === "ALL"
       ? tasks
-      : tasks.filter(
-          (t) =>
-            t.projectId ===
-            selectedProjectId
-        );
+      : tasks.filter((t) => t.projectId === selectedProjectId);
 
   const stages: {
     label: string;
@@ -199,8 +188,7 @@ const [tasksRes, projectsRes, usersRes] =
           </h2>
 
           <p className="mt-1 text-sm text-slate-500">
-            Board view for tracking
-            project milestones.
+            Board view for tracking project milestones.
           </p>
         </div>
 
@@ -209,11 +197,7 @@ const [tasksRes, projectsRes, usersRes] =
             onClick={() => {
               setNewTask((prev) => ({
                 ...prev,
-                projectId:
-                  selectedProjectId !==
-                  "ALL"
-                    ? selectedProjectId
-                    : "",
+                projectId: selectedProjectId !== "ALL" ? selectedProjectId : "",
               }));
 
               setIsModalOpen(true);
@@ -229,33 +213,26 @@ const [tasksRes, projectsRes, usersRes] =
       {/* Project Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar border-b border-slate-100 pb-1">
         <button
-          onClick={() =>
-            setSelectedProjectId("ALL")
-          }
+          onClick={() => setSelectedProjectId("ALL")}
           className={cn(
             "px-4 py-2 text-xs font-bold uppercase tracking-widest transition-all rounded-lg",
             selectedProjectId === "ALL"
               ? "bg-indigo-50 text-indigo-700"
-              : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+              : "text-slate-400 hover:text-slate-600 hover:bg-slate-50",
           )}
         >
           All
         </button>
 
-        {(Array.isArray(projects) ? projects : []).map((project) => (
+        {projects.map((project) => (
           <button
             key={project.id}
-            onClick={() =>
-              setSelectedProjectId(
-                project.id
-              )
-            }
+            onClick={() => setSelectedProjectId(project.id)}
             className={cn(
               "px-4 py-2 text-xs font-bold uppercase tracking-widest transition-all rounded-lg",
-              selectedProjectId ===
-                project.id
+              selectedProjectId === project.id
                 ? "bg-indigo-50 text-indigo-700"
-                : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+                : "text-slate-400 hover:text-slate-600 hover:bg-slate-50",
             )}
           >
             {project.name}
@@ -272,21 +249,15 @@ const [tasksRes, projectsRes, usersRes] =
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {stages.map((stage) => (
-            <div
-              key={stage.status}
-              className="flex flex-col gap-4"
-            >
+            <div key={stage.status} className="flex flex-col gap-4">
               <div className="flex items-center justify-between px-2">
                 <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 flex items-center gap-2">
                   {stage.label}
 
                   <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[10px] text-slate-400">
                     {
-                      filteredTasks.filter(
-                        (t) =>
-                          t.status ===
-                          stage.status
-                      ).length
+                      filteredTasks.filter((t) => t.status === stage.status)
+                        .length
                     }
                   </span>
                 </h3>
@@ -295,11 +266,7 @@ const [tasksRes, projectsRes, usersRes] =
               <div className="flex flex-col gap-3 min-h-[500px] border-2 border-dashed border-slate-100/50 rounded-2xl p-2 bg-slate-50/30">
                 <AnimatePresence mode="popLayout">
                   {filteredTasks
-                    .filter(
-                      (t) =>
-                        t.status ===
-                        stage.status
-                    )
+                    .filter((t) => t.status === stage.status)
                     .map((task, i) => (
                       <motion.div
                         key={task.id}
@@ -322,19 +289,11 @@ const [tasksRes, projectsRes, usersRes] =
                         className="group relative flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-indigo-200 transition-all"
                       >
                         <div className="flex items-start justify-between">
-                          <PriorityBadge
-                            priority={
-                              task.priority
-                            }
-                          />
+                          <PriorityBadge priority={task.priority} />
 
                           {isAdmin && (
                             <button
-                              onClick={() =>
-                                handleDeleteTask(
-                                  task.id
-                                )
-                              }
+                              onClick={() => handleDeleteTask(task.id)}
                               className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-600 transition-all p-1"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
@@ -353,38 +312,31 @@ const [tasksRes, projectsRes, usersRes] =
                         <div className="mt-2 flex items-center justify-between border-t border-slate-50 pt-3">
                           <div className="flex items-center gap-1.5">
                             <div className="h-6 w-6 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200 text-[10px] font-bold text-slate-400">
-                              {task.assignedTo
-                                ?.name?.[0] ||
-                                "?"}
+                              {task.assignedTo?.name?.[0] || "?"}
                             </div>
 
                             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                               {task.dueDate
-                                ? new Date(
-                                    task.dueDate
-                                  ).toLocaleDateString(
+                                ? new Date(task.dueDate).toLocaleDateString(
                                     undefined,
                                     {
-                                      month:
-                                        "short",
+                                      month: "short",
                                       day: "numeric",
-                                    }
+                                    },
                                   )
                                 : "No Date"}
                             </span>
                           </div>
 
                           <div className="flex gap-1">
-                            {stage.status !==
-                              "TODO" && (
+                            {stage.status !== "TODO" && (
                               <button
                                 onClick={() =>
                                   handleUpdateStatus(
                                     task.id,
-                                    stage.status ===
-                                      "DONE"
+                                    stage.status === "DONE"
                                       ? "IN_PROGRESS"
-                                      : "TODO"
+                                      : "TODO",
                                   )
                                 }
                                 className="h-6 w-6 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:text-indigo-600 transition-colors"
@@ -393,16 +345,14 @@ const [tasksRes, projectsRes, usersRes] =
                               </button>
                             )}
 
-                            {stage.status !==
-                              "DONE" && (
+                            {stage.status !== "DONE" && (
                               <button
                                 onClick={() =>
                                   handleUpdateStatus(
                                     task.id,
-                                    stage.status ===
-                                      "TODO"
+                                    stage.status === "TODO"
                                       ? "IN_PROGRESS"
-                                      : "DONE"
+                                      : "DONE",
                                   )
                                 }
                                 className="h-6 w-6 flex items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all shadow-sm shadow-indigo-100"
@@ -416,10 +366,8 @@ const [tasksRes, projectsRes, usersRes] =
                     ))}
                 </AnimatePresence>
 
-                {filteredTasks.filter(
-                  (t) =>
-                    t.status === stage.status
-                ).length === 0 && (
+                {filteredTasks.filter((t) => t.status === stage.status)
+                  .length === 0 && (
                   <div className="flex-1 flex items-center justify-center text-[10px] font-bold uppercase tracking-widest text-slate-300">
                     Empty
                   </div>
@@ -433,15 +381,10 @@ const [tasksRes, projectsRes, usersRes] =
       {/* Create Task Modal */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() =>
-          setIsModalOpen(false)
-        }
+        onClose={() => setIsModalOpen(false)}
         title="Create New Task"
       >
-        <form
-          onSubmit={handleCreateTask}
-          className="space-y-4"
-        >
+        <form onSubmit={handleCreateTask} className="space-y-4">
           <input
             required
             value={newTask.title}
@@ -461,8 +404,7 @@ const [tasksRes, projectsRes, usersRes] =
             onChange={(e) =>
               setNewTask({
                 ...newTask,
-                description:
-                  e.target.value,
+                description: e.target.value,
               })
             }
             placeholder="Description"
@@ -475,72 +417,53 @@ const [tasksRes, projectsRes, usersRes] =
             onChange={(e) =>
               setNewTask({
                 ...newTask,
-                projectId:
-                  e.target.value,
+                projectId: e.target.value,
               })
             }
             className="w-full rounded-xl border border-slate-200 px-4 py-3"
           >
-            <option value="">
-              Select Project
-            </option>
+            <option value="">Select Project</option>
 
             {projects.map((p) => (
-              <option
-                key={p.id}
-                value={p.id}
-              >
+              <option key={p.id} value={p.id}>
                 {p.name}
               </option>
             ))}
           </select>
 
           <select
-  required
-  value={newTask.assignedToId}
-  onChange={(e) =>
-    setNewTask({
-      ...newTask,
-      assignedToId: e.target.value,
-    })
-  }
-  className="w-full rounded-xl border border-slate-200 px-4 py-3"
->
-  <option value="">
-    Select Assignee
-  </option>
+            required
+            value={newTask.assignedToId}
+            onChange={(e) =>
+              setNewTask({
+                ...newTask,
+                assignedToId: e.target.value,
+              })
+            }
+            className="w-full rounded-xl border border-slate-200 px-4 py-3"
+          >
+            <option value="">Select Assignee</option>
 
-  {members.map((member) => (
-    <option
-      key={member.id}
-      value={member.id}
-    >
-      {member.name} ({member.role})
-    </option>
-  ))}
-</select>
+            {members.map((member) => (
+              <option key={member.id} value={member.id}>
+                {member.name} ({member.role})
+              </option>
+            ))}
+          </select>
 
           <select
             value={newTask.priority}
             onChange={(e) =>
               setNewTask({
                 ...newTask,
-                priority:
-                  e.target
-                    .value as Priority,
+                priority: e.target.value as Priority,
               })
             }
             className="w-full rounded-xl border border-slate-200 px-4 py-3"
           >
-            <option value="LOW">
-              Low
-            </option>
-            <option value="MEDIUM">
-              Medium
-            </option>
-            <option value="HIGH">
-              High
-            </option>
+            <option value="LOW">Low</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="HIGH">High</option>
           </select>
 
           <input
@@ -549,8 +472,7 @@ const [tasksRes, projectsRes, usersRes] =
             onChange={(e) =>
               setNewTask({
                 ...newTask,
-                dueDate:
-                  e.target.value,
+                dueDate: e.target.value,
               })
             }
             className="w-full rounded-xl border border-slate-200 px-4 py-3"
