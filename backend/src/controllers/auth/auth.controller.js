@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 
 export const signup = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password } = req.body;
 
     // validation
     if (!name || !email || !password) {
@@ -26,6 +26,12 @@ export const signup = async (req, res) => {
       });
     }
 
+    // count existing users
+    const usersCount = await prisma.user.count();
+
+    // first user becomes admin
+    const role = usersCount === 0 ? "ADMIN" : "MEMBER";
+
     // hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -40,8 +46,18 @@ export const signup = async (req, res) => {
     });
 
     res.status(201).json({
-      message: "User created successfully",
-      user,
+      message:
+        role === "ADMIN"
+          ? "Admin account created successfully"
+          : "User created successfully",
+
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt,
+      },
     });
   } catch (error) {
     console.log(error);
@@ -77,10 +93,7 @@ export const login = async (req, res) => {
     }
 
     // password compare
-    const isPasswordCorrect = await bcrypt.compare(
-      password,
-      user.password
-    );
+    const isPasswordCorrect = await bcrypt.compare(password, user.password);
 
     if (!isPasswordCorrect) {
       return res.status(400).json({
@@ -97,7 +110,7 @@ export const login = async (req, res) => {
       process.env.JWT_SECRET,
       {
         expiresIn: "7d",
-      }
+      },
     );
 
     res.status(200).json({
@@ -108,6 +121,7 @@ export const login = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        createdAt: user.createdAt,
       },
     });
   } catch (error) {
