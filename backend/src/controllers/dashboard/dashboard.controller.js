@@ -2,15 +2,14 @@ import prisma from "../../prisma/prisma.js";
 
 export const getDashboardData = async (req, res) => {
   try {
-
     let totalTasks;
     let completedTasks;
     let pendingTasks;
     let overdueTasks;
+    let recentTasks;
 
     // ADMIN DASHBOARD
     if (req.user.role === "ADMIN") {
-
       totalTasks = await prisma.task.count();
 
       completedTasks = await prisma.task.count({
@@ -32,15 +31,20 @@ export const getDashboardData = async (req, res) => {
           dueDate: {
             lt: new Date(),
           },
-
           status: {
             not: "DONE",
           },
         },
       });
 
-    } else {
+      recentTasks = await prisma.task.findMany({
+        take: 5,
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
 
+    } else {
       // MEMBER DASHBOARD
       totalTasks = await prisma.task.count({
         where: {
@@ -51,7 +55,6 @@ export const getDashboardData = async (req, res) => {
       completedTasks = await prisma.task.count({
         where: {
           assignedToId: req.user.id,
-
           status: "DONE",
         },
       });
@@ -59,7 +62,6 @@ export const getDashboardData = async (req, res) => {
       pendingTasks = await prisma.task.count({
         where: {
           assignedToId: req.user.id,
-
           status: {
             not: "DONE",
           },
@@ -69,17 +71,24 @@ export const getDashboardData = async (req, res) => {
       overdueTasks = await prisma.task.count({
         where: {
           assignedToId: req.user.id,
-
           dueDate: {
             lt: new Date(),
           },
-
           status: {
             not: "DONE",
           },
         },
       });
 
+      recentTasks = await prisma.task.findMany({
+        where: {
+          assignedToId: req.user.id,
+        },
+        take: 5,
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
     }
 
     res.status(200).json({
@@ -87,15 +96,14 @@ export const getDashboardData = async (req, res) => {
       completedTasks,
       pendingTasks,
       overdueTasks,
+      recentTasks,
     });
 
   } catch (error) {
-
     console.log(error);
 
     res.status(500).json({
       message: "Internal server error",
     });
-
   }
 };
