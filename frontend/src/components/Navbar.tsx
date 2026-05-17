@@ -99,7 +99,7 @@ export function Navbar({ onOpenSidebar }: NavbarProps) {
   }, []);
 
   return (
-    <header className="sticky top-0 z-30 flex h-20 w-full items-center justify-between border-b border-slate-200 bg-white/80 px-6 backdrop-blur-md">
+    <header className="sticky top-0 z-30 flex h-22 w-full items-center justify-between border-b border-slate-200 bg-white/80 px-6 backdrop-blur-md">
       {/* Left */}
       <div className="flex items-center gap-4">
         <button
