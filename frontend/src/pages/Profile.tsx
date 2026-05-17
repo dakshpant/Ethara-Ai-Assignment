@@ -71,7 +71,7 @@ export default function Profile() {
 
         <div className="relative px-4 pb-6 sm:px-6 sm:pb-8 md:px-8">
           {/* Profile Top */}
-          <div className="-mt-12 flex flex-col gap-5 sm:-mt-14 md:-mt-16 lg:flex-row lg:items-end lg:justify-between">
+          <div className="-mt-12 flex flex-col gap-5 sm:-mt-14 md:-mt-10 lg:flex-row lg:items-end lg:justify-between">
             {/* Left */}
             <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:items-end sm:text-left">
               {/* Avatar */}
